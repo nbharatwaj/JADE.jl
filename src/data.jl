@@ -249,6 +249,9 @@ include(joinpath("data", "transmission.jl"))
 include(joinpath("data", "checks.jl"))
 include("network.jl")
 
+# EA-2025 SSAD Changes
+incloude(joinpath("data", "wind.jl"))
+
 """
     getnodes(NODES::Vector{Symbol},
              thermal_stations::Dict{Symbol,ThermalStation},
