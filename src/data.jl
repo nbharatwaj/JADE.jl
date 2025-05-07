@@ -250,7 +250,7 @@ include(joinpath("data", "checks.jl"))
 include("network.jl")
 
 # EA-2025 SSAD Changes
-incloude(joinpath("data", "wind.jl"))
+include(joinpath("data", "wind.jl"))
 
 """
     getnodes(NODES::Vector{Symbol},
