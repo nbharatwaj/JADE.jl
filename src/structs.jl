@@ -211,9 +211,11 @@ mutable struct Sets
     HYDROS::Vector{Symbol}                  # hydro power stations
     CATCHMENTS_WITH_INFLOW::Vector{Symbol}  # locations with inflow data
     JUNCTIONS_WITHOUT_INFLOW::Vector{Symbol}
-    NATURAL_ARCS::Vector{NTuple{2,Symbol}} # arcs independent of hydro stations
-    STATION_ARCS::Vector{NTuple{2,Symbol}} # origin and destination of water for a hydro station
-    TRANS_ARCS::Vector{NTuple{2,Symbol}}   # power transmission arcs
+	SOLARS::Vector{Symbol}                  # Solar power plants
+	WINDS::Vector{Symbol}                   # Wind Power Stations
+    NATURAL_ARCS::Vector{NTuple{2,Symbol}}  # arcs independent of hydro stations
+    STATION_ARCS::Vector{NTuple{2,Symbol}}  # origin and destination of water for a hydro station
+    TRANS_ARCS::Vector{NTuple{2,Symbol}}    # power transmission arcs
 end
 
 function Sets()
@@ -227,6 +229,8 @@ function Sets()
         Symbol[],
         Symbol[],
         Symbol[],
+        Symbol[],
+		Symbol[],
         Symbol[],
         NTuple{2,Symbol}[],
         NTuple{2,Symbol}[],

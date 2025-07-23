@@ -67,6 +67,8 @@ This function checks that there are no outages greater than the capacity of a st
 function checkoutages(
     thermals::Dict{Symbol,ThermalStation},
     hydros::Dict{Symbol,HydroStation},
+	solars::Dict{Symbol,SolarStation},
+	winds::Dict{Symbol,WindStation},
     outages::TimeSeries{Dict{Tuple{Symbol,Symbol},Float64}},
     loadblocks::Vector{Symbol},
     rundata::RunData,
@@ -77,6 +79,16 @@ function checkoutages(
         end
     end
     for (name, station) in hydros, b in loadblocks, tp in keys(outages)
+        if station.capacity < get(outages[tp], (name, b), -Inf)
+            error("$name outage exceeds capacity in block $b, $tp")
+        end
+    end
+	for (name, station) in solars, b in loadblocks, tp in keys(outages)
+        if station.capacity < get(outages[tp], (name, b), -Inf)
+            error("$name outage exceeds capacity in block $b, $tp")
+        end
+    end
+	for (name, station) in winds, b in loadblocks, tp in keys(outages)
         if station.capacity < get(outages[tp], (name, b), -Inf)
             error("$name outage exceeds capacity in block $b, $tp")
         end

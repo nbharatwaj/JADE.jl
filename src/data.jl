@@ -143,6 +143,8 @@ end
 struct NodeHas
     thermal::Array{Symbol}
     hydro::Array{Symbol}
+	solar::Array{Symbol}
+	wind::Array{Symbol}
 end
 
 function process_set_items(
@@ -243,19 +245,21 @@ end
 include(joinpath("data", "demand.jl"))
 include(joinpath("data", "hydro.jl"))
 include(joinpath("data", "thermal.jl"))
+include(joinpath("data", "solar.jl"))
+include(joinpath("data", "wind.jl"))
 include(joinpath("data", "outages.jl"))
 include(joinpath("data", "fixed.jl"))
 include(joinpath("data", "transmission.jl"))
 include(joinpath("data", "checks.jl"))
 include("network.jl")
 
-# EA-2025 SSAD Changes
-include(joinpath("data", "wind.jl"))
-
 """
     getnodes(NODES::Vector{Symbol},
              thermal_stations::Dict{Symbol,ThermalStation},
-             hydro_stations::Dict{Symbol,HydroStation})
+             hydro_stations::Dict{Symbol,HydroStation},
+			 solar_stations::Dict{Symbol,SolarStation},
+			 wind_stations::Dict{Symbol,WindStation}
+			 )
 
 Assigns thermal and hydro plants to their nodes.
 
@@ -268,10 +272,12 @@ function getnodes(
     NODES::Vector{Symbol},
     thermal_stations::Dict{Symbol,ThermalStation},
     hydro_stations::Dict{Symbol,HydroStation},
+	solar_stations::Dict{Symbol,SolarStation},
+	wind_stations::Dict{Symbol,WindStation}
 )
     nodeproperties = Dict{Symbol,NodeHas}()
     for n in NODES
-        nodeproperties[n] = NodeHas(Symbol[], Symbol[])
+        nodeproperties[n] = NodeHas(Symbol[], Symbol[], Symbol[],Symbol[])
         for (name, station) in thermal_stations
             if station.node == n
                 push!(nodeproperties[n].thermal, name)
@@ -280,6 +286,16 @@ function getnodes(
         for (name, station) in hydro_stations
             if station.node == n
                 push!(nodeproperties[n].hydro, name)
+            end
+        end
+		for (name, station) in solar_stations
+            if station.node == n
+                push!(nodeproperties[n].solar, name)
+            end
+        end
+		for (name, station) in wind_stations
+            if station.node == n
+                push!(nodeproperties[n].wind, name)
             end
         end
     end
@@ -299,6 +315,10 @@ An object containing all the data required to run the JADE model.
 `thermal_stations` Dictionary of thermal power station properties.
 
 `hydro_stations` Dictionary of hydro station properties.
+
+`solar_stations` Dictionary of solar station properties.
+
+`wind_stations` Dictionary of wind station properties.
 
 `reservoirs` Dictionary of reservoir properties.
 
@@ -338,6 +358,8 @@ mutable struct JADEData
     rundata::RunData
     thermal_stations::Dict{Symbol,ThermalStation}
     hydro_stations::Dict{Symbol,HydroStation}
+	solar_stations::Dict{Symbol,SolarStation}
+	wind_stations::Dict{Symbol,WindStation}
     reservoirs::Dict{Symbol,Reservoir}
     fuel_costs::TimeSeries{Dict{Symbol,Float64}}
     carbon_content::Dict{Symbol,Float64}
@@ -392,6 +414,14 @@ function JADEdata(rundata::RunData)
     hydro_stations, station_arcs = gethydros(filedir("hydro_stations.csv"), sets.NODES)
     sets.HYDROS = collect(keys(hydro_stations))
     sets.STATION_ARCS = collect(keys(station_arcs))
+	
+	@info("Input solar stations")
+    solar_stations = getsolars(filedir("solar_stations.csv"), sets.NODES)
+    sets.SOLARS = collect(keys(solar_stations))
+	
+	@info("Input wind stations")
+    wind_stations = getwinds(filedir("wind_stations.csv"), sets.NODES)
+    sets.WINDS = collect(keys(wind_stations))
 
     # Prepare reservoir parameters
     reservoirs =
@@ -499,7 +529,7 @@ function JADEdata(rundata::RunData)
         @info("Reading outages from 'station_outages.csv' in DOASA compatibility mode")
         outage, stations = gettimeseries(filedir("station_outages.csv"))
         if length(
-            setdiff(union(sets.THERMALS, sets.HYDROS), collect(keys(outage.data[1]))),
+            setdiff(union(sets.THERMALS, sets.HYDROS, sets.WINDS, sets.SOLARS), collect(keys(outage.data[1]))),
         ) != 0
             error("Not all generators are listed in station_outages.csv")
         end
@@ -508,7 +538,7 @@ function JADEdata(rundata::RunData)
         error("'generator_outages.csv' not found in input directory.")
     end
 
-    checkoutages(thermal_stations, hydro_stations, outage, sets.BLOCKS, rundata)
+    checkoutages(thermal_stations, hydro_stations, solar_stations, wind_stations ,outage, sets.BLOCKS, rundata)
 
     @info("Compute fixed generation")
 
@@ -588,13 +618,15 @@ function JADEdata(rundata::RunData)
         rundata,
         thermal_stations,
         hydro_stations,
+		solar_stations,
+		wind_stations,
         reservoirs,
         fuel_costs,
         carbon_content,
         inflow_mat,
         station_arcs,
         natural_arcs,
-        getnodes(sets.NODES, thermal_stations, hydro_stations),
+        getnodes(sets.NODES, thermal_stations, hydro_stations, solar_stations, wind_stations),
         spMax,
         transmission,
         loops,
@@ -615,6 +647,8 @@ function backup_input_files(rundata::RunData)
         "demand.csv",
         "thermal_stations.csv",
         "hydro_stations.csv",
+		"solar_stations.csv",
+		"wind_stations.csv",
         "reservoirs.csv",
         "reservoir_limits.csv",
         "hydro_arcs.csv",

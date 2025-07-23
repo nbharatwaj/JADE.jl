@@ -1181,8 +1181,7 @@ a `scenario_dir` then the first directory to search is <data_dir>/data_files/<sc
 """
 function get_file_directory(x::String, rundata::RunData; verbose::Bool = true)
     input_directory = joinpath(@__JADE_DIR__, "Input", rundata.data_dir)
-
-    if rundata.scenario_dir != "" &&
+	    if rundata.scenario_dir != "" &&
        !isdir(joinpath(input_directory, "data_files", rundata.scenario_dir))
         error(
             "'Input/$(rundata.data_dir)/data_files/$(rundata.scenario_dir)' scenario directory not found.",

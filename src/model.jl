@@ -41,7 +41,6 @@ function JADEsddp(d::JADEData, optimizer = nothing)
 
     #------------------------------------------------------------------------
     graph = SDDP.LinearGraph(number_of_wks)
-
     if d.rundata.steady_state
         SDDP.add_edge(graph, number_of_wks => 1, d.rundata.discount)
     end
@@ -110,6 +109,10 @@ function JADEsddp(d::JADEData, optimizer = nothing)
                 hydro_disp[s.HYDROS, s.BLOCKS] >= 0
                 # Amount of thermal energy used, in MW
                 thermal_use[s.THERMALS, s.BLOCKS] >= 0
+				# Amount of solar energy used, in MW
+                solar_disp[s.SOLARS, s.BLOCKS] >= 0
+				# Amount of wind energy used, in MW
+                wind_disp[s.WINDS, s.BLOCKS] >= 0
                 # Transmission flows between nodes in MW
                 transflow[s.TRANS_ARCS, s.BLOCKS]
                 # Water flows in cumecs
@@ -245,7 +248,9 @@ function JADEsddp(d::JADEData, optimizer = nothing)
                 d.durations[timenow][bl] * (
                     transmission[n, bl] - node_losses[n, bl] +
                     sum(thermal_use[m, bl] for m in d.nodehas[n].thermal) +
-                    sum(hydro_disp[m, bl] for m in d.nodehas[n].hydro)
+                    sum(hydro_disp[m, bl] for m in d.nodehas[n].hydro) + 
+					sum(solar_disp[m, bl] for m in d.nodehas[n].solar) + 
+					sum(wind_disp[m, bl] for m in d.nodehas[n].wind)
                 )
             )
         else
@@ -255,7 +260,9 @@ function JADEsddp(d::JADEData, optimizer = nothing)
                 d.durations[timenow][bl] * (
                     transmission[n, bl] +
                     sum(thermal_use[m, bl] for m in d.nodehas[n].thermal) +
-                    sum(hydro_disp[m, bl] for m in d.nodehas[n].hydro)
+                    sum(hydro_disp[m, bl] for m in d.nodehas[n].hydro) + 
+					sum(solar_disp[m, bl] for m in d.nodehas[n].solar) + 
+					sum(wind_disp[m, bl] for m in d.nodehas[n].wind)
                 )
             )
         end
@@ -288,6 +295,22 @@ function JADEsddp(d::JADEData, optimizer = nothing)
                 useThermal[m in s.THERMALS, bl in s.BLOCKS],
                 thermal_use[m, bl] <=
                 d.thermal_stations[m].capacity - sum(
+                    d.outage[timenow][(mm, bb)] for
+                    (mm, bb) in keys(d.outage[timenow]) if (mm, bb) == (m, bl)
+                )
+				
+				# Solar plant capacities
+                useSolar[m in s.SOLARS, bl in s.BLOCKS],
+                solar_disp[m, bl] <=
+                d.solar_stations[m].capacity - sum(
+                    d.outage[timenow][(mm, bb)] for
+                    (mm, bb) in keys(d.outage[timenow]) if (mm, bb) == (m, bl)
+                )
+				
+				# Wind plant capacities
+                useWind[m in s.WINDS, bl in s.BLOCKS],
+                wind_disp[m, bl] <=
+                d.wind_stations[m].capacity - sum(
                     d.outage[timenow][(mm, bb)] for
                     (mm, bb) in keys(d.outage[timenow]) if (mm, bb) == (m, bl)
                 )
@@ -585,6 +608,14 @@ function JADEsddp(d::JADEData, optimizer = nothing)
             sum(
                 station.omcost * hydro_disp[name, bl] * d.durations[timenow][bl] for
                 (name, station) in d.hydro_stations, bl in s.BLOCKS
+            ) +
+			sum(
+                station.omcost * solar_disp[name, bl] * d.durations[timenow][bl] for
+                (name, station) in d.solar_stations, bl in s.BLOCKS
+            ) +
+			sum(
+                station.omcost * wind_disp[name, bl] * d.durations[timenow][bl] for
+                (name, station) in d.wind_stations, bl in s.BLOCKS
             ) +
             flowpenalties +
             lostloadcosts +
